@@ -2,22 +2,22 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Seven Card Stud Mini</title>
+  <title>Seven Card Stud - Hand Eval 完全版</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #0b2e13; color: white; }
+    body { font-family: sans-serif; padding: 20px; background: #132020; color: white; }
     .hand { display: flex; margin-bottom: 10px; }
     .card { border: 1px solid white; padding: 10px; margin-right: 5px; background: white; color: black; }
-    button { margin-right: 10px; padding: 10px; }
+    button { padding: 10px; margin-right: 10px; }
     .log { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h1>Seven Card Stud (CPU対戦デモ)</h1>
+  <h1>Seven Card Stud（完全役判定対応）</h1>
 
-  <h2>CPUの公開カード</h2>
+  <h2>CPUの手札</h2>
   <div id="cpu-hand" class="hand"></div>
 
-  <h2>あなたの公開カード</h2>
+  <h2>あなたの手札</h2>
   <div id="player-hand" class="hand"></div>
 
   <div>
@@ -29,12 +29,15 @@
   <div class="log" id="log"></div>
 
   <script>
-    const deck = [
-      '♠2','♠3','♠4','♠5','♠6','♠7','♠8','♠9','♠10','♠J','♠Q','♠K','♠A',
-      '♥2','♥3','♥4','♥5','♥6','♥7','♥8','♥9','♥10','♥J','♥Q','♥K','♥A',
-      '♦2','♦3','♦4','♦5','♦6','♦7','♦8','♦9','♦10','♦J','♦Q','♦K','♦A',
-      '♣2','♣3','♣4','♣5','♣6','♣7','♣8','♣9','♣10','♣J','♣Q','♣K','♣A'
-    ];
+    const suits = ['♠','♥','♦','♣'];
+    const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+    const deck = [];
+    suits.forEach(suit => {
+      ranks.forEach(rank => {
+        deck.push(suit + rank);
+      });
+    });
 
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -59,29 +62,82 @@
       });
     }
 
-    function getCardValue(card) {
-      const val = card.slice(1);
-      if (val === 'J') return 11;
-      if (val === 'Q') return 12;
-      if (val === 'K') return 13;
-      if (val === 'A') return 14;
-      return parseInt(val);
+    function getVal(card) {
+      const r = card.slice(1);
+      if (r === 'J') return 11;
+      if (r === 'Q') return 12;
+      if (r === 'K') return 13;
+      if (r === 'A') return 14;
+      return parseInt(r);
     }
 
-    function evaluateStrength(visibleCards) {
-      const values = visibleCards.map(getCardValue);
-      const pairs = values.filter((v, i, arr) => arr.indexOf(v) !== i).length;
-      const high = Math.max(...values);
-      if (pairs >= 2) return 'strong';
-      if (pairs === 1) return high >= 10 ? 'medium' : 'weak';
-      return high >= 12 ? 'medium' : 'weak';
+    function evaluateHand(cards) {
+      const suits = {};
+      const ranks = {};
+      const values = [];
+
+      cards.forEach(card => {
+        const suit = card[0];
+        const val = getVal(card);
+        values.push(val);
+        suits[suit] = (suits[suit] || []);
+        suits[suit].push(val);
+        ranks[val] = (ranks[val] || 0) + 1;
+      });
+
+      const sortedVals = [...new Set(values)].sort((a, b) => a - b);
+      const rankCounts = Object.values(ranks).sort((a, b) => b - a);
+
+      function isStraight(vals) {
+        vals = [...new Set(vals)].sort((a, b) => a - b);
+        for (let i = 0; i <= vals.length - 5; i++) {
+          const slice = vals.slice(i, i + 5);
+          if (slice[4] - slice[0] === 4 &&
+              slice.every((v, idx, arr) => idx === 0 || v === arr[idx-1] + 1)) {
+            return true;
+          }
+        }
+        if (vals.includes(14)) {
+          const lowStraight = [2,3,4,5];
+          if (lowStraight.every(v => vals.includes(v))) return true;
+        }
+        return false;
+      }
+
+      const flushSuit = Object.keys(suits).find(s => suits[s].length >= 5);
+      const flushVals = flushSuit ? suits[flushSuit] : [];
+
+      if (flushSuit && isStraight(flushVals)) return 'Straight Flush';
+      if (rankCounts[0] === 4) return 'Four of a Kind';
+      if (rankCounts[0] === 3 && rankCounts[1] >= 2) return 'Full House';
+      if (flushSuit) return 'Flush';
+      if (isStraight(values)) return 'Straight';
+      if (rankCounts[0] === 3) return 'Three of a Kind';
+      if (rankCounts[0] === 2 && rankCounts[1] === 2) return 'Two Pair';
+      if (rankCounts[0] === 2) return 'One Pair';
+      return 'High Card';
     }
 
-    function cpuAction(stage, strength) {
+    function getStrengthLevel(rank) {
+      switch(rank) {
+        case 'Straight Flush':
+        case 'Four of a Kind':
+        case 'Full House': return 'strong';
+        case 'Flush':
+        case 'Straight':
+        case 'Three of a Kind': return 'medium';
+        case 'Two Pair':
+        case 'One Pair': return 'weak';
+        default: return 'very weak';
+      }
+    }
+
+    function cpuActionByStrength(strength) {
       const rnd = Math.random();
-      if (strength === 'strong') return rnd < 0.7 ? 'raise' : 'call';
-      if (strength === 'medium') return rnd < 0.6 ? 'call' : 'fold';
-      return stage === 'early' && rnd < 0.5 ? 'call' : 'fold';
+      if (strength === 'strong') return rnd < 0.8 ? 'raise' : 'call';
+      if (strength === 'medium') return rnd < 0.7 ? 'call' : 'fold';
+      if (strength === 'weak') return rnd < 0.5 ? 'call' : 'fold';
+      return 'fold';
     }
 
     function logMessage(msg) {
@@ -89,21 +145,48 @@
       log.innerHTML += `<p>${msg}</p>`;
     }
 
-    // 初期化
+    // 初期処理
     let deckState = shuffle([...deck]);
-    const cpuVisible = dealHand(deckState, 3);
-    const playerVisible = dealHand(deckState, 3);
-    renderHand('cpu-hand', cpuVisible);
-    renderHand('player-hand', playerVisible);
+    const cpuHand = dealHand(deckState, 7);
+    const playerHand = dealHand(deckState, 7);
 
-    const cpuStrength = evaluateStrength(cpuVisible);
-    const cpuStage = 'middle';
-    const cpuMove = cpuAction(cpuStage, cpuStrength);
+    renderHand('cpu-hand', cpuHand);
+    renderHand('player-hand', playerHand);
 
-    logMessage(`CPUのアクション: ${cpuMove.toUpperCase()}`);
+    const cpuRank = evaluateHand(cpuHand);
+    const playerRank = evaluateHand(playerHand);
+    const cpuStrength = getStrengthLevel(cpuRank);
+    const cpuMove = cpuActionByStrength(cpuStrength);
 
-    function playerAction(act) {
-      logMessage(`あなたのアクション: ${act.toUpperCase()}`);
+    logMessage(`CPUの手札評価: ${cpuRank}`);
+    logMessage(`CPUの行動: ${cpuMove.toUpperCase()}`);
+
+    function playerAction(action) {
+      logMessage(`あなたの行動: ${action.toUpperCase()}`);
+      logMessage(`あなたの手札評価: ${playerRank}`);
+
+      const rankOrder = [
+        'High Card',
+        'One Pair',
+        'Two Pair',
+        'Three of a Kind',
+        'Straight',
+        'Flush',
+        'Full House',
+        'Four of a Kind',
+        'Straight Flush'
+      ];
+
+      const cpuScore = rankOrder.indexOf(cpuRank);
+      const playerScore = rankOrder.indexOf(playerRank);
+
+      if (cpuScore > playerScore) {
+        logMessage('CPUの勝ち！');
+      } else if (playerScore > cpuScore) {
+        logMessage('あなたの勝ち！');
+      } else {
+        logMessage('引き分けです！');
+      }
     }
   </script>
 </body>
