@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Seven Card Stud Mini</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #0b2e13; color: white; }
+    .hand { display: flex; margin-bottom: 10px; }
+    .card { border: 1px solid white; padding: 10px; margin-right: 5px; background: white; color: black; }
+    button { margin-right: 10px; padding: 10px; }
+    .log { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Seven Card Stud (CPU対戦デモ)</h1>
+
+  <h2>CPUの公開カード</h2>
+  <div id="cpu-hand" class="hand"></div>
+
+  <h2>あなたの公開カード</h2>
+  <div id="player-hand" class="hand"></div>
+
+  <div>
+    <button onclick="playerAction('fold')">Fold</button>
+    <button onclick="playerAction('call')">Call</button>
+    <button onclick="playerAction('raise')">Raise</button>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    const deck = [
+      '♠2','♠3','♠4','♠5','♠6','♠7','♠8','♠9','♠10','♠J','♠Q','♠K','♠A',
+      '♥2','♥3','♥4','♥5','♥6','♥7','♥8','♥9','♥10','♥J','♥Q','♥K','♥A',
+      '♦2','♦3','♦4','♦5','♦6','♦7','♦8','♦9','♦10','♦J','♦Q','♦K','♦A',
+      '♣2','♣3','♣4','♣5','♣6','♣7','♣8','♣9','♣10','♣J','♣Q','♣K','♣A'
+    ];
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function dealHand(deck, count) {
+      return deck.splice(0, count);
+    }
+
+    function renderHand(containerId, cards) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      cards.forEach(card => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.textContent = card;
+        container.appendChild(div);
+      });
+    }
+
+    function getCardValue(card) {
+      const val = card.slice(1);
+      if (val === 'J') return 11;
+      if (val === 'Q') return 12;
+      if (val === 'K') return 13;
+      if (val === 'A') return 14;
+      return parseInt(val);
+    }
+
+    function evaluateStrength(visibleCards) {
+      const values = visibleCards.map(getCardValue);
+      const pairs = values.filter((v, i, arr) => arr.indexOf(v) !== i).length;
+      const high = Math.max(...values);
+      if (pairs >= 2) return 'strong';
+      if (pairs === 1) return high >= 10 ? 'medium' : 'weak';
+      return high >= 12 ? 'medium' : 'weak';
+    }
+
+    function cpuAction(stage, strength) {
+      const rnd = Math.random();
+      if (strength === 'strong') return rnd < 0.7 ? 'raise' : 'call';
+      if (strength === 'medium') return rnd < 0.6 ? 'call' : 'fold';
+      return stage === 'early' && rnd < 0.5 ? 'call' : 'fold';
+    }
+
+    function logMessage(msg) {
+      const log = document.getElementById('log');
+      log.innerHTML += `<p>${msg}</p>`;
+    }
+
+    // 初期化
+    let deckState = shuffle([...deck]);
+    const cpuVisible = dealHand(deckState, 3);
+    const playerVisible = dealHand(deckState, 3);
+    renderHand('cpu-hand', cpuVisible);
+    renderHand('player-hand', playerVisible);
+
+    const cpuStrength = evaluateStrength(cpuVisible);
+    const cpuStage = 'middle';
+    const cpuMove = cpuAction(cpuStage, cpuStrength);
+
+    logMessage(`CPUのアクション: ${cpuMove.toUpperCase()}`);
+
+    function playerAction(act) {
+      logMessage(`あなたのアクション: ${act.toUpperCase()}`);
+    }
+  </script>
+</body>
+</html>
