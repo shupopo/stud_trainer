@@ -4,7 +4,6 @@
       v-for="(card, index) in cards"
       :key="index"
       class="card"
-      :class="{ highlight: highlight.includes(card) }"
     >
       {{ card }}
     </div>
@@ -13,8 +12,7 @@
 
 <script setup>
 defineProps({
-  cards: Array,
-  highlight: Array
+  cards: Array
 })
 </script>
 
@@ -26,9 +24,7 @@ defineProps({
   margin-right: 5px;
   background: white;
   color: black;
-}
-.highlight {
-  border: 2px solid gold;
-  font-weight: bold;
+  min-width: 40px;
+  text-align: center;
 }
 </style>

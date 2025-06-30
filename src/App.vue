@@ -1,45 +1,42 @@
 <template>
   <div class="container">
-    <h1>Seven Card Stud（Vue版）</h1>
+    <h1>Seven Card Stud - 3rd Street Demo</h1>
 
-    <h2>CPUの手札</h2>
-    <HandDisplay :cards="cpuHand" :highlight="cpuBestFive" />
+    <h2>CPUの手札（公開1枚のみ）</h2>
+    <HandDisplay :cards="cpuVisibleCards" />
 
-    <h2>あなたの手札</h2>
-    <HandDisplay :cards="playerHand" :highlight="playerBestFive" />
+    <h2>あなたの手札（2伏せ＋1公開）</h2>
+    <HandDisplay :cards="playerVisibleCards" />
 
-    <ActionPanel @action="handlePlayerAction" />
-
-    <div class="log">
-      <p v-for="(msg, idx) in log" :key="idx">{{ msg }}</p>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { evaluateHand } from './utils/evaluateHand'
+import { ref, computed } from 'vue'
 import HandDisplay from './components/HandDisplay.vue'
-import ActionPanel from './components/ActionPanel.vue'
 
-const deck = ref(shuffle(generateDeck()))
-const cpuHand = ref(deck.value.splice(0, 7))
-const playerHand = ref(deck.value.splice(0, 7))
+const deck = ref(generateDeck())
+shuffle(deck.value)
 
-const cpuEval = evaluateHand(cpuHand.value)
-const playerEval = evaluateHand(playerHand.value)
+const fullPlayerHand = deck.value.splice(0, 7)
+const fullCpuHand = deck.value.splice(0, 7)
 
-const cpuBestFive = cpuEval.bestFive
-const playerBestFive = playerEval.bestFive
+const currentStreet = ref(3)
 
-const log = ref([
-  `CPU: ${cpuEval.rank}`,
-  `You: ${playerEval.rank}`
-])
+const playerVisibleCards = computed(() => {
+  return fullPlayerHand.map((card, i) => {
+    if (i === 0 || i === 1) return card  // 自分の伏せカードは見える
+    if (i === 2) return card             // 公開1枚
+    return '?'                           // それ以降は未配布
+  })
+})
 
-function handlePlayerAction(action) {
-  log.value.push(`You chose: ${action}`)
-}
+const cpuVisibleCards = computed(() => {
+  return fullCpuHand.map((card, i) => {
+    if (i === 2) return card             // 公開カード
+    return '?'                           // 伏せ or 未配布
+  })
+})
 
 function generateDeck() {
   const suits = ['♠','♥','♦','♣']
@@ -52,11 +49,9 @@ function shuffle(array) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[array[i], array[j]] = [array[j], array[i]]
   }
-  return array
 }
 </script>
 
 <style scoped>
-.container { font-family: sans-serif; padding: 20px; background: #132020; color: white; }
-.log { margin-top: 20px; }
+.container { font-family: sans-serif; padding: 20px; background: #1d1f20; color: white; }
 </style>
