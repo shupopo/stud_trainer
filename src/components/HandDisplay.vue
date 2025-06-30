@@ -5,19 +5,26 @@
       :key="index"
       class="card"
     >
-      {{ card }}
+      {{ hideIndices.includes(index) ? '?' : card }}
     </div>
   </div>
 </template>
 
 <script setup>
 defineProps({
-  cards: Array
+  cards: Array,
+  hideIndices: {
+    type: Array,
+    default: () => []
+  }
 })
 </script>
 
 <style scoped>
-.hand { display: flex; margin-bottom: 10px; }
+.hand {
+  display: flex;
+  margin-bottom: 10px;
+}
 .card {
   border: 1px solid white;
   padding: 10px;
