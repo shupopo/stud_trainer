@@ -1,19 +1,26 @@
+
 <template>
   <div class="container">
-    <h1>Seven Card Stud - 勝敗判定付き</h1>
+    <h1>Seven Card Stud - ボード表示 & 役詳細付き</h1>
 
-    <h2>CPUの手札</h2>
-    <HandDisplay :cards="fullCpuHand" :hideIndices="cpuHiddenIndices" />
+    <div class="board">
+      <div class="player-row">
+        <h3>CPU</h3>
+        <HandDisplay :cards="fullCpuHand" :hideIndices="cpuHiddenIndices" :highlight="cpuBestFive" />
+      </div>
 
-    <h2>あなたの手札</h2>
-    <HandDisplay :cards="fullPlayerHand" />
+      <div class="player-row">
+        <h3>あなた</h3>
+        <HandDisplay :cards="fullPlayerHand" :hideIndices="playerHiddenIndices" :highlight="playerBestFive" />
+      </div>
+    </div>
 
     <button @click="nextStreet" :disabled="currentStreet >= 7">
       Next Street ({{ currentStreet }} → {{ currentStreet + 1 }})
     </button>
 
     <div class="result" v-if="resultText">
-      <h3>勝敗結果：</h3>
+      <h3>ショーダウン！</h3>
       <p>{{ resultText }}</p>
     </div>
   </div>
@@ -32,12 +39,13 @@ const fullCpuHand = deck.value.splice(0, 7)
 
 const currentStreet = ref(3)
 const resultText = ref('')
-const showAllCpuCards = ref(false) // ← 🔑 NEW
+const showAllCpuCards = ref(false)
 
+const playerBestFive = ref([])
+const cpuBestFive = ref([])
 
-// CPUの表示制御（伏せるインデックス）
 const cpuHiddenIndices = computed(() => {
-  if (showAllCpuCards.value) return [] // ← すべて公開
+  if (showAllCpuCards.value) return []
   const indices = []
   for (let i = 0; i < 7; i++) {
     const isRevealed = (i === 2) || (i >= 3 && i < currentStreet.value)
@@ -47,11 +55,19 @@ const cpuHiddenIndices = computed(() => {
   return indices
 })
 
+const playerHiddenIndices = computed(() => {
+  const indices = []
+  for (let i = 0; i < 7; i++) {
+    if (i >= currentStreet.value) indices.push(i)
+  }
+  return indices
+})
+
 function nextStreet() {
   if (currentStreet.value < 7) {
     currentStreet.value += 1
     if (currentStreet.value === 7) {
-      showAllCpuCards.value = true // ← 🔑 CPU手札をすべて公開
+      showAllCpuCards.value = true
       evaluateShowdown()
     }
   }
@@ -61,6 +77,9 @@ function evaluateShowdown() {
   const playerEval = evaluateHand(fullPlayerHand)
   const cpuEval = evaluateHand(fullCpuHand)
 
+  playerBestFive.value = playerEval.bestFive
+  cpuBestFive.value = cpuEval.bestFive
+
   const rankOrder = [
     'High Card', 'One Pair', 'Two Pair', 'Three of a Kind',
     'Straight', 'Flush', 'Full House', 'Four of a Kind', 'Straight Flush'
@@ -69,12 +88,14 @@ function evaluateShowdown() {
   const playerScore = rankOrder.indexOf(playerEval.rank)
   const cpuScore = rankOrder.indexOf(cpuEval.rank)
 
+  const detail = (hand) => `${hand.rank}${hand.detail ? ' (' + hand.detail + ')' : ''}`
+
   if (playerScore > cpuScore) {
-    resultText.value = `あなたの勝ち！（${playerEval.rank} vs ${cpuEval.rank}）`
+    resultText.value = `あなたの勝ち！ ${detail(playerEval)} vs ${detail(cpuEval)}`
   } else if (cpuScore > playerScore) {
-    resultText.value = `CPUの勝ち！（${cpuEval.rank} vs ${playerEval.rank}）`
+    resultText.value = `CPUの勝ち！ ${detail(cpuEval)} vs ${detail(playerEval)}`
   } else {
-    resultText.value = `引き分け（${playerEval.rank}）`
+    resultText.value = `引き分け（${detail(playerEval)}）`
   }
 }
 
@@ -98,9 +119,19 @@ function shuffle(array) {
   padding: 20px;
   background: #1d1f20;
   color: white;
+  text-align: center;
+}
+.board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.player-row {
+  margin: 10px 0;
 }
 button {
-  margin-top: 20px;
+  margin-top: 10px;
   padding: 10px 20px;
 }
 .result {
